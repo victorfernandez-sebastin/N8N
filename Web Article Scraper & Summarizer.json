@@ -1,0 +1,247 @@
+{
+  "name": "Web Article Scraper & Summarizer",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -464,
+        -80
+      ],
+      "id": "06d40e65-4e0d-4ffb-8d33-3a7f0f2466da",
+      "name": "Manual Trigger"
+    },
+    {
+      "parameters": {
+        "url": "https://en.wikipedia.org/wiki/Web_scraping",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -240,
+        -80
+      ],
+      "id": "62213304-bdbf-4205-a995-b7f78591e9b4",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "sendTo": "victor.ferz82@gmail.com",
+        "subject": "={{ $('Format the Extracted Text').item.json.title }}",
+        "message": "={{ $json.summary }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1056,
+        -80
+      ],
+      "id": "05e3fe8d-203c-437b-b1c2-97b177059c4c",
+      "name": "Send a message",
+      "webhookId": "2abe1e7b-1158-4052-9326-cfde161c8238",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "ALpJN7EuJ737b0xN",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the HTML from the HTTP Request\nconst htmlContent = $input.first().json.data;\n\n// Function to extract readable text from HTML\nfunction extractTextFromHTML(html) {\n    // Remove scripts, styles, and navigation elements\n    let cleanHtml = html\n        .replace(/<script\\b[^<]*(?:(?!<\\/script>)<[^<]*)*<\\/script>/gi, '')\n        .replace(/<style\\b[^<]*(?:(?!<\\/style>)<[^<]*)*<\\/style>/gi, '')\n        .replace(/<nav\\b[^<]*(?:(?!<\\/nav>)<[^<]*)*<\\/nav>/gi, '')\n        .replace(/<footer\\b[^<]*(?:(?!<\\/footer>)<[^<]*)*<\\/footer>/gi, '')\n        .replace(/<header\\b[^<]*(?:(?!<\\/header>)<[^<]*)*<\\/header>/gi, '');\n    \n    // Try to find the main article content\n    const contentPatterns = [\n        /<article[^>]*>(.*?)<\\/article>/is,\n        /<main[^>]*>(.*?)<\\/main>/is,\n        /<div[^>]*class=\"[^\"]*content[^\"]*\"[^>]*>(.*?)<\\/div>/is,\n        /<div[^>]*class=\"[^\"]*post[^\"]*\"[^>]*>(.*?)<\\/div>/is\n    ];\n    \n    let mainContent = '';\n    for (const pattern of contentPatterns) {\n        const match = cleanHtml.match(pattern);\n        if (match && match[1].length > 500) {\n            mainContent = match[1];\n            break;\n        }\n    }\n    \n    // If no main content found, get all paragraphs\n    if (!mainContent) {\n        const paragraphs = cleanHtml.match(/<p[^>]*>.*?<\\/p>/gi);\n        if (paragraphs) {\n            mainContent = paragraphs.join(' ');\n        }\n    }\n    \n    // Remove all HTML tags and clean up\n    const textContent = mainContent\n        .replace(/<[^>]*>/g, ' ')\n        .replace(/\\s+/g, ' ')\n        .trim();\n    \n    return textContent;\n}\n\n// Extract the text\nconst extractedText = extractTextFromHTML(htmlContent);\n\n// Split into meaningful chunks\nconst textChunks = extractedText\n    .split(/\\.\\s+/)\n    .filter(chunk => chunk.length > 20)\n    .slice(0, 30);\n\nreturn {\n    rawText: extractedText,\n    textChunks: textChunks,\n    chunkCount: textChunks.length,\n    totalLength: extractedText.length\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -16,
+        -80
+      ],
+      "id": "cf9ac7c6-7ccf-49bc-bae9-18008b5988f3",
+      "name": "Code to Extract Raw HTML"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the extracted text from previous node\nconst rawText = $input.first().json.rawText;\nconst textChunks = $input.first().json.textChunks;\n\n// Join chunks into clean article\nconst articleText = textChunks.join('. ');\n\n// Advanced cleaning\nconst cleanedText = articleText\n    .replace(/\\s+/g, ' ')  // Multiple spaces to single space\n    .replace(/\\n+/g, ' ')  // Remove line breaks  \n    .replace(/[^\\w\\s\\.\\,\\:\\;\\-\\(\\)\\$\\%]/g, '') // Keep only essential punctuation\n    .replace(/\\b(Advertisement|Subscribe|Share|Tweet|Follow|Like|Comment)\\b/gi, '') // Remove social media text\n    .trim();\n\n// Prepare for AI (limit length for API)\nconst maxLength = 3500; // Safe limit for most AI APIs\nconst textForAI = cleanedText.length > maxLength \n    ? cleanedText.substring(0, maxLength) + '...'\n    : cleanedText;\n\n// Try to extract a title (first meaningful sentence)\nconst titleMatch = cleanedText.match(/^([^\\.]{20,100})\\./);\nconst extractedTitle = titleMatch \n    ? titleMatch[1].trim() \n    : 'Web Article';\n\n// Calculate stats\nconst wordCount = cleanedText.split(' ').length;\nconst sourceUrl = 'https://techcrunch.com/2025/07/06/7-new-tech-unicorns-were-minted-in-2025-so-far/';\n\nreturn {\n    cleanedText: cleanedText,\n    textForAI: textForAI,\n    title: extractedTitle,\n    wordCount: wordCount,\n    characterCount: cleanedText.length,\n    sourceUrl: sourceUrl,\n    processedAt: new Date().toISOString()\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        -80
+      ],
+      "id": "a542b747-869b-45f0-8a7b-53dd8765b6ff",
+      "name": "Format the Extracted Text"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the AI response\nconst aiResponse = $input.first().json.message.content\n\n// Add extra line breaks for better spacing\nconst formattedResponse = aiResponse\n    .replace(/\\*\\*/g, '\\n**')  // Add line break before bold text\n    .replace(/(\\n•|\\n→|\\n-)/g, '\\n$1')  // Add space before bullet points\n    .replace(/\\n\\n\\n/g, '\\n\\n')  // Remove triple line breaks\n    .replace(/([.!?])\\s*([A-Z])/g, '$1\\n\\n$2')  // Add line breaks between sentences\n    .trim();\n\n// Create structured sections\nconst sections = {\n    summary: formattedResponse,\n    wordCount: formattedResponse.split(' ').length,\n    lineCount: formattedResponse.split('\\n').length,\n    hasFormatting: formattedResponse.includes('**') || formattedResponse.includes('•'),\n    formattedAt: new Date().toISOString()\n};\n\nreturn sections;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        832,
+        -80
+      ],
+      "id": "1adf18ba-e2bc-42e6-99c2-ab3f59a64567",
+      "name": "Beautify Message"
+    },
+    {
+      "parameters": {
+        "content": "## Scrape the wenpage and Summarize by using LLM\n\nManual Trigger - Start button\nHTTP Request - Downloads webpage (with proper headers to avoid blocking)\nCode Node #1 - Converts HTML to clean text\nCode Node #2 - Final cleaning and prep for AI\nOpenAI Node - Creates intelligent summary\nCode Node #3 - Formats everything nicely\nSend a Message Node - Send the summary in Gamil",
+        "height": 240,
+        "width": 624
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        32,
+        -368
+      ],
+      "typeVersion": 1,
+      "id": "ae43a81b-acb8-46c2-9fb9-e5a000a39821",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## What the workflow does\nA professional web scraping system that:\n\n✅ Works with any website\n✅ Extracts clean, readable content\n✅ Creates intelligent AI summaries\n✅ Handles errors gracefully\n✅ Formats output professionally\n✅ Can save results anywhere",
+        "height": 240,
+        "width": 336
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -320,
+        -368
+      ],
+      "typeVersion": 1,
+      "id": "8de88d32-e41d-4681-b55e-a6c55236c7a3",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-3.5-turbo",
+          "mode": "list",
+          "cachedResultName": "GPT-3.5-TURBO"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Role: user\nContent: \"Please create a 2-3 paragraph summary of this article:\n\nTitle: {{ $json.title }}\nContent: {{$json.textForAI}}\nFocus on: main statistics, key companies mentioned, important trends, and key takeaways.\""
+            },
+            {
+              "content": "Role: system\nContent: You are a professional journalist who creates concise, informative summaries. Focus on key facts, numbers, and main points.",
+              "role": "system"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        432,
+        -80
+      ],
+      "id": "a63a34d8-b4bd-49d7-9340-84da934e1f2b",
+      "name": "LLM call to Summarize the Text",
+      "credentials": {
+        "openAiApi": {
+          "id": "JqqMFb0CytAZdf65",
+          "name": "OpenAi account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code to Extract Raw HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code to Extract Raw HTML": {
+      "main": [
+        [
+          {
+            "node": "Format the Extracted Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format the Extracted Text": {
+      "main": [
+        [
+          {
+            "node": "LLM call to Summarize the Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Beautify Message": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM call to Summarize the Text": {
+      "main": [
+        [
+          {
+            "node": "Beautify Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "ec381ddf-926a-41c8-a91c-b8144ce9c01e",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "4aea429a4a9eb2d691217395b2b4675392ddfd2140753f63cfc73e18da857f99"
+  },
+  "id": "7hkIWjvixjxDg1p9",
+  "tags": []
+}

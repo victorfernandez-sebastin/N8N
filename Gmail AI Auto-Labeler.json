@@ -1,0 +1,202 @@
+{
+  "name": "Gmail AI Auto-Labeler",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {}
+          ]
+        },
+        "filters": {
+          "readStatus": "unread"
+        }
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        -64
+      ],
+      "id": "f5ee3fc1-1b84-4e93-b2df-52fed4ccc7b2",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "ZgmgnFtmC9zDyoqZ",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get email data from Gmail trigger\nconst emailData = $input.first().json;\n\n// Extract email components\nconst subject = emailData.subject || 'No Subject';\nconst fromEmail = emailData.from || 'Unknown Sender';\nconst body = emailData.body || emailData.textPlain || emailData.snippet || 'No Content';\nconst messageId = emailData.id;\n\n// Extract sender name (remove email part)\nconst senderName = fromEmail.includes('<') \n    ? fromEmail.split('<')[0].trim().replace(/\"/g, '')\n    : fromEmail.split('@')[0];\n\n// Clean and prepare email body for AI\nconst cleanBody = body\n    .replace(/<[^>]*>/g, ' ')  // Remove HTML tags\n    .replace(/\\s+/g, ' ')      // Multiple spaces to single\n    .replace(/https?:\\/\\/[^\\s]+/g, '[LINK]')  // Replace URLs\n    .slice(0, 1000)            // Limit length for AI processing\n    .trim();\n\n// Create combined text for AI analysis\nconst emailForAnalysis = `\nSubject: ${subject}\nFrom: ${senderName} (${fromEmail})\nContent: ${cleanBody}\n`.trim();\n\n// Extract basic indicators\nconst indicators = {\n    hasUrgentWords: /urgent|asap|important|critical|emergency/i.test(subject + ' ' + body),\n    isFromKnownWork: /noreply|support@|team@|admin@|hr@/i.test(fromEmail),\n    isNewsletter: /unsubscribe|newsletter|marketing/i.test(body),\n    isFinancial: /payment|invoice|billing|bank|transaction|receipt/i.test(subject + ' ' + body),\n    isPersonal: !/@(gmail|yahoo|hotmail|outlook)/.test(fromEmail) && !/noreply|support|team|admin/.test(fromEmail)\n};\n\nreturn {\n    messageId: messageId,\n    subject: subject,\n    fromEmail: fromEmail,\n    senderName: senderName,\n    cleanBody: cleanBody,\n    emailForAnalysis: emailForAnalysis,\n    indicators: indicators,\n    originalLength: body.length,\n    processedAt: new Date().toISOString()\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        -64
+      ],
+      "id": "e4f88392-e3da-4fb3-92c7-8bacbae3bfcb",
+      "name": "Code for Email Content Extractor"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-3.5-turbo",
+          "mode": "list",
+          "cachedResultName": "GPT-3.5-TURBO"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Classify this email:\n\n{{$json.emailForAnalysis}}\n\nAdditional context:\n- Has urgent keywords: {{$json.indicators.hasUrgentWords}}\n- From work system: {{$json.indicators.isFromKnownWork}}  \n- Appears to be newsletter: {{$json.indicators.isNewsletter}}\n- Financial content: {{$json.indicators.isFinancial}}\n\nClassification:"
+            },
+            {
+              "content": "You are an expert email classifier. Analyze emails and classify them into exactly ONE of these categories:\n\nURGENT - Requires immediate attention (deadlines, emergencies, time-sensitive)\nWORK - Professional, business, career-related  \nPERSONAL - Friends, family, personal relationships\nNEWSLETTERS - Marketing emails, subscriptions, updates\nFINANCE - Banking, payments, invoices, financial matters\nSUPPORT - Customer service, technical support, help requests\nPROMOTIONAL - Sales, offers, low-priority commercial content\n\nRespond with ONLY the category name in UPPERCASE. No explanation needed.",
+              "role": "system"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        448,
+        -64
+      ],
+      "id": "c8da294e-e325-407a-b18c-ded9cd8930a3",
+      "name": "Open AI model for Email Classifier",
+      "credentials": {
+        "openAiApi": {
+          "id": "JqqMFb0CytAZdf65",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get all input items from the previous nodes\nconst inputData = $input.all();\n\n// First item = AI classification + Gmail Trigger\nconst triggerData = inputData[0].json;\nconst aiResponse = triggerData.message.content.trim().toUpperCase();\n\n// Remaining items = Gmail Labels\nconst labelData = inputData.slice(1).map(item => item.json);\n\n// Extract email info\nconst messageId = triggerData.id;\nconst subject = triggerData.subject || 'No Subject';\nconst fromEmail = triggerData.from || 'Unknown Sender';\n\n// Map AI response to label name\nconst labelMapping = {\n  'URGENT': 'Label_3296389265179697752',\n  'WORK': 'Label_2965825969279879070',\n  'PERSONAL': 'Label_670353524847082460',\n  'NEWSLETTERS': 'Label_6268813042122616209',\n  'FINANCE': 'Label_6835581435094315345',\n  'SUPPORT': 'Label_1273865621220998305',\n  'PROMOTIONAL': 'Label_5117354304799793770'\n};\n\nconst gmailLabelName = labelMapping[aiResponse] || 'AI-Work';\n\n// Match label by name (case-insensitive)\nconst foundLabel = labelData.find(label => label.name.toLowerCase() === gmailLabelName.toLowerCase());\n\n// Fallback to INBOX if no match found\nconst fallbackLabel = labelData.find(label => label.name === 'INBOX');\nconst labelId = foundLabel?.id || fallbackLabel?.id || null;\n\n// Return result\nreturn [\n  {\n    json: {\n      messageId,\n      subject,\n      fromEmail,\n      aiClassification: aiResponse,\n      gmailLabel: gmailLabelName,\n      gmailLabelId: labelId,\n      confidence: aiResponse in labelMapping ? 'high' : 'low',\n      processedAt: new Date().toISOString(),\n      debug: {\n        rawAiResponse: triggerData.message.content,\n        validClassification: aiResponse in labelMapping,\n        labelFound: !!foundLabel,\n        labelMatched: foundLabel?.name || null,\n        allLabelNames: labelData.map(l => l.name)\n      }\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        848,
+        -64
+      ],
+      "id": "52849fa0-3c1d-4a1b-9faa-b67ad2eb1747",
+      "name": "Code for Label Mapper"
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $('Gmail Trigger').first().json.id }}",
+        "labelIds": "={{ $json.gmailLabel }}"
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1072,
+        -64
+      ],
+      "id": "52f3afc1-ee11-49a5-83a4-cf1569582b96",
+      "name": "Add label to message",
+      "webhookId": "29f961b2-fa9a-4f4c-bd61-ab2e4fb2e6a8",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "ZgmgnFtmC9zDyoqZ",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "##  Auto-label incoming Gmail messages with AI nodes\nGmail trigger monitors for new emails\nCode extracts subject, sender, body content\nAI analyzes and classifies the email type\nSystem automatically applies appropriate label",
+        "width": 656
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        432,
+        -272
+      ],
+      "typeVersion": 1,
+      "id": "fc302729-0a12-452a-b108-9b003778482a",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## What does the workflow do:\n\nGmail Trigger - Detects new emails instantly\nCode Node - Extracts and cleans email content\nOpenAI Node - AI classifies email type\nCode Node - Maps AI response to Gmail labels\nGmail Node - Applies the label automatically\nSet Node - Logs successful processing",
+        "height": 208,
+        "width": 384
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        32,
+        -288
+      ],
+      "typeVersion": 1,
+      "id": "c2299985-1ec5-4540-b25d-a19511212c3e",
+      "name": "Sticky Note1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Code for Email Content Extractor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code for Email Content Extractor": {
+      "main": [
+        [
+          {
+            "node": "Open AI model for Email Classifier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Open AI model for Email Classifier": {
+      "main": [
+        [
+          {
+            "node": "Code for Label Mapper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code for Label Mapper": {
+      "main": [
+        [
+          {
+            "node": "Add label to message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "2cc0d9d4-dbe2-45bf-92f4-b1d5f10c5d0a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "4aea429a4a9eb2d691217395b2b4675392ddfd2140753f63cfc73e18da857f99"
+  },
+  "id": "K33XPj10RKQ9aZrL",
+  "tags": []
+}
