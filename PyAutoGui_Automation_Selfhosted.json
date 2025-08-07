@@ -1,0 +1,333 @@
+{
+  "name": "PyAutoGui_Automation_Selfhosted",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Trigger Workflow\n**Manual Trigger**",
+        "height": 320
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        0,
+        96
+      ],
+      "typeVersion": 1,
+      "id": "cc182ab1-ce62-4f0a-b164-775c0222aeef",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Set Datetime Node\n**To set the current Datetime**",
+        "height": 320
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        256,
+        96
+      ],
+      "typeVersion": 1,
+      "id": "bce701c2-f837-4047-8567-d31ee8366462",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## Basic LLM Node\n**To call Open AI system prompt**\n**to get the Inspirting quote**",
+        "height": 464,
+        "width": 304
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        512,
+        96
+      ],
+      "typeVersion": 1,
+      "id": "b2ab22ff-9792-45c8-9121-822e7b285fb6",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "## Http Request Node\n**To call Flask API**\n**to create/open the textfile to save the inspirtational quote**",
+        "height": 464,
+        "width": 304
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        880,
+        96
+      ],
+      "typeVersion": 1,
+      "id": "c8a0c361-9020-4dc3-984d-470d6407cd9f",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        64,
+        240
+      ],
+      "id": "4fa11c45-8d46-4d4f-b532-8d07523a7da3",
+      "name": "Manual Trigger Workflow"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fb899bc3-fe7c-45ad-9436-2d30447944d9",
+              "name": "",
+              "value": "={{ $now }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        288,
+        240
+      ],
+      "id": "6f57ca87-3075-4ca4-b991-e20383387aa5",
+      "name": "Set the Datetime"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "You are a world-renowned quote writer, known for crafting short, original, and uplifting inspirational quotes in English. Your tone is positive, empowering, and timeless. Every quote should stand alone and be emotionally resonant.\n\n- Keep each quote under 25 words.\n- Avoid repeating common clichés or copying existing quotes.\n- Do not include author names or hashtags.\n- Output only the quote text, nothing else.\n\nGenerate one fresh and meaningful inspirational quote.\n",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        528,
+        240
+      ],
+      "id": "244268c0-dae8-4d68-8882-d99e8f3c6c4a",
+      "name": "Call LLM to get the Quote"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        608,
+        416
+      ],
+      "id": "cf9eb2e5-c771-4364-9937-6ecb884f29c9",
+      "name": "OpenAI APIKey",
+      "credentials": {
+        "openAiApi": {
+          "id": "JqqMFb0CytAZdf65",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://0b49d36e5d7b.ngrok-free.app/write-datetime",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "=datetime",
+              "value": "={{ $json.text }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        976,
+        240
+      ],
+      "id": "0847caa3-9190-434c-98f2-ad3d35f59903",
+      "name": "HTTP call to Flask API"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        576,
+        272
+      ],
+      "typeVersion": 1,
+      "id": "951f07af-bbee-46c0-a428-9d35b0ec81fd",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        576,
+        272
+      ],
+      "typeVersion": 1,
+      "id": "7f4541d4-5611-461f-80cc-2b3cfedb8936",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        576,
+        272
+      ],
+      "typeVersion": 1,
+      "id": "782f19c4-bcc2-4259-8815-c05f31377db9",
+      "name": "Sticky Note6"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        576,
+        272
+      ],
+      "typeVersion": 1,
+      "id": "32267cf5-c1a0-49bd-ab00-121e98e6a884",
+      "name": "Sticky Note7"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        576,
+        272
+      ],
+      "typeVersion": 1,
+      "id": "e02f7409-3337-4fb6-9c25-3fd5569f0b15",
+      "name": "Sticky Note8"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        576,
+        272
+      ],
+      "typeVersion": 1,
+      "id": "423cac83-0309-4796-a347-512c5a3e4321",
+      "name": "Sticky Note9"
+    },
+    {
+      "parameters": {
+        "content": "## Assignment for PyAutoGUI/REST API to call the LLM to get the Inspirational Quote for everyday and store it in Notepad.(Used SelfHosted N8N/Ngrok)",
+        "height": 80,
+        "width": 1184
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        0,
+        0
+      ],
+      "typeVersion": 1,
+      "id": "d2e101de-8a74-4b12-9e7b-f43e42d7a5b0",
+      "name": "Sticky Note10"
+    },
+    {
+      "parameters": {
+        "sendTo": "victor.ferz82@gmail.com",
+        "subject": "=Daily Quote",
+        "message": "={{ $json.datetime }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1296,
+        272
+      ],
+      "id": "6a4b0ad7-6398-4054-a01f-f8139f34fd61",
+      "name": "Send a message",
+      "webhookId": "edd028cf-f2b4-4d75-b462-55934ec0a23c",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "ALpJN7EuJ737b0xN",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual Trigger Workflow": {
+      "main": [
+        [
+          {
+            "node": "Set the Datetime",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set the Datetime": {
+      "main": [
+        [
+          {
+            "node": "Call LLM to get the Quote",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call LLM to get the Quote": {
+      "main": [
+        [
+          {
+            "node": "HTTP call to Flask API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI APIKey": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Call LLM to get the Quote",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP call to Flask API": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "722f937d-9b16-4219-8b31-f3775cc5ca2a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "4aea429a4a9eb2d691217395b2b4675392ddfd2140753f63cfc73e18da857f99"
+  },
+  "id": "c7aLdclEkKCbQztJ",
+  "tags": []
+}

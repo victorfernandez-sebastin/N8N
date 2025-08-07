@@ -1,0 +1,411 @@
+{
+  "name": "Google_Review_Analysis",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -448,
+        -48
+      ],
+      "id": "e4adb99c-0d60-46df-90b8-14ec24d69a17",
+      "name": "Manual Trigger"
+    },
+    {
+      "parameters": {
+        "url": "https://serpapi.com/search.json?engine=google_maps_reviews&place_id=ChIJf15egGC5qjsR53pJaizkxb4&api_key=c117ae526ac8f9458cfd1cbabc21fddd96926875945172ae13b9c8a4b5d08c71",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -240,
+        -48
+      ],
+      "id": "78e1f4db-4fac-4111-a83e-41e150b8c605",
+      "name": "Google Reviews API Call"
+    },
+    {
+      "parameters": {
+        "jsCode": "const reviews = items[0].json.reviews;\n\nreturn reviews.map(review => {\n  return {\n    json: {\n      Name: review.user.name,\n      Rating: review.rating,\n      Date: review.iso_date,\n      Review: review.extracted_snippet.original,\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        -48
+      ],
+      "id": "f25ca505-3f86-45bd-be38-bdc8b62b8a7c",
+      "name": "Wrapper to List Items"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "65f57add-2898-4b43-b5af-a8a8c0e22542",
+              "name": "Name",
+              "value": "={{ $json.Name }}",
+              "type": "string"
+            },
+            {
+              "id": "4bfc39c7-8717-44d2-aa22-0bada8a5084a",
+              "name": "Rating",
+              "value": "={{ $json.Rating }}",
+              "type": "number"
+            },
+            {
+              "id": "9d70b81e-45d8-42d9-bbe6-a865c44184bf",
+              "name": "Date",
+              "value": "={{ $json.Date }}",
+              "type": "string"
+            },
+            {
+              "id": "ecb01c7b-ebf8-4065-816e-df6c3a325963",
+              "name": "Review",
+              "value": "={{ $json.Review }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        192,
+        -48
+      ],
+      "id": "3650b47f-0188-4842-8004-8218e255b4da",
+      "name": "Set Review Data"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-3.5-turbo",
+          "mode": "list",
+          "cachedResultName": "GPT-3.5-TURBO"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Analyze the following Google review for Get First Academy and summarize the intent and sentiment:\n\"{{ $json.Review }}\"\n\nRespond in this format:\nOutcome: <sentiment analysis> and <Your brief outcome>"
+            },
+            {
+              "content": "You are an AI assistant that analyzes Google reviews for Get First Academy. Your task is to classify the sentiment and summarize what the reviewer is expressing about the academy in simple terms.\n\nInstructions:\n1. Understand the intent behind the review.\n2. Detect whether the review is positive, neutral, or negative.\n3. Summarize the user's intent or feeling in a short, helpful sentence.\n\nFormat:\nOutcome: <your short analysis or insight>\n\nExample:\nReview: \"Planning to join first academy for some career development courses. It's great to have new opening nearby.\"\nOutcome: This is a positive review. The user is excited and plans to join soon.\n\nOnly return the Outcome line.\n",
+              "role": "system"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        368,
+        -48
+      ],
+      "id": "556aac9b-451c-4f2a-8525-065918d18445",
+      "name": "AI Model to Analyse Reviews",
+      "credentials": {
+        "openAiApi": {
+          "id": "JqqMFb0CytAZdf65",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1G1uvlxloeMTSBdwrYDCZ5OmUV3Cx3hqPU3-leP0VFQs",
+          "mode": "list",
+          "cachedResultName": "Google_reviews",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1G1uvlxloeMTSBdwrYDCZ5OmUV3Cx3hqPU3-leP0VFQs/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1G1uvlxloeMTSBdwrYDCZ5OmUV3Cx3hqPU3-leP0VFQs/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name": "={{ $('Wrapper to List Items').item.json.Name }}",
+            "Review": "={{ $('Wrapper to List Items').item.json.Review }}",
+            "Rating": "={{ $('Wrapper to List Items').item.json.Rating }}",
+            "Date": "={{ $('Wrapper to List Items').item.json.Date }}",
+            "Outcome": "={{ $json.message.content }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Review",
+              "displayName": "Review",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Rating",
+              "displayName": "Rating",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Outcome",
+              "displayName": "Outcome",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        736,
+        -48
+      ],
+      "id": "8a7acfd2-f13a-4183-b0c6-bbd0987a964f",
+      "name": "Dump Data to google sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YYgW0dlsqkYRX5UA",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Here is a N8N workflow to extract the Google Reviews and call AI model to perform sentiment analysis to take appropriate action. (Used serp API key to extract the google Reviews Data / Open AI model to analyse the Data/ Google Sheet to store the outcome).\n\n**Real use case to analyse the Google Reviews for Get First Academy Thanjavur\n**https://www.google.com/maps/place/Get+First+Knowledge+Hub/@10.7587987,79.1265264,17z/data=!4m8!3m7!1s0x3baab960805e5e7f:0xbec5e42c6a497ae7!8m2!3d10.7587987!4d79.1265264!9m1!1b1!16s%2Fg%2F11x6s7t21h?entry=ttu&g_ep=EgoyMDI1MDcyOC4wIKXMDSoASAFQAw%3D%3D",
+        "height": 208,
+        "width": 1344
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -464,
+        -304
+      ],
+      "typeVersion": 1,
+      "id": "a50e7daa-2245-493e-bd0c-49782be4b7ff",
+      "name": "Sticky Note"
+    }
+  ],
+  "pinData": {
+    "AI Model to Analyse Reviews": [
+      {
+        "json": {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "Outcome: This is a positive review. The user is expressing interest in joining Get First Academy for career development courses and is happy about the new location being nearby.",
+            "refusal": null,
+            "annotations": []
+          },
+          "logprobs": null,
+          "finish_reason": "stop"
+        }
+      },
+      {
+        "json": {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "Outcome: This is a positive review. The user is pleased that Get First Academy is opening soon as it means more opportunities for youth.",
+            "refusal": null,
+            "annotations": []
+          },
+          "logprobs": null,
+          "finish_reason": "stop"
+        }
+      },
+      {
+        "json": {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "Outcome: This is a positive review. The user is highly satisfied with the expert solutions provided by Get First Academy for their child and highly recommends the company.",
+            "refusal": null,
+            "annotations": []
+          },
+          "logprobs": null,
+          "finish_reason": "stop"
+        }
+      },
+      {
+        "json": {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "Outcome: This is a positive review expressing well wishes towards First Academy and acknowledging the need for a good training center for freshers.",
+            "refusal": null,
+            "annotations": []
+          },
+          "logprobs": null,
+          "finish_reason": "stop"
+        }
+      },
+      {
+        "json": {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "Outcome: This is a positive review. The user appreciates education initiatives and believes that Get First Academy will help many people.",
+            "refusal": null,
+            "annotations": []
+          },
+          "logprobs": null,
+          "finish_reason": "stop"
+        }
+      },
+      {
+        "json": {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "Outcome: Positive sentiment. The reviewer is impressed with the well-planned sessions, friendly mentors, and motivating atmosphere at Get First Academy.",
+            "refusal": null,
+            "annotations": []
+          },
+          "logprobs": null,
+          "finish_reason": "stop"
+        }
+      },
+      {
+        "json": {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "Outcome: Positive sentiment. The reviewer is excited about learning new skills at Get First Academy and is looking forward to its opening.",
+            "refusal": null,
+            "annotations": []
+          },
+          "logprobs": null,
+          "finish_reason": "stop"
+        }
+      },
+      {
+        "json": {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "Outcome: Positive sentiment. The reviewer believes Get First Academy is an excellent place to start and improve skills, praising the professional ambiance.",
+            "refusal": null,
+            "annotations": []
+          },
+          "logprobs": null,
+          "finish_reason": "stop"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Google Reviews API Call",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Reviews API Call": {
+      "main": [
+        [
+          {
+            "node": "Wrapper to List Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wrapper to List Items": {
+      "main": [
+        [
+          {
+            "node": "Set Review Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Review Data": {
+      "main": [
+        [
+          {
+            "node": "AI Model to Analyse Reviews",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Model to Analyse Reviews": {
+      "main": [
+        [
+          {
+            "node": "Dump Data to google sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dump Data to google sheet": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "6128eae8-6637-449e-83c0-f1a0480006bf",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "4aea429a4a9eb2d691217395b2b4675392ddfd2140753f63cfc73e18da857f99"
+  },
+  "id": "0l1nWm6YBJtyK4Lw",
+  "tags": []
+}

@@ -1,0 +1,256 @@
+{
+  "name": "N8N_Challenge_Slack_Mention_Logs",
+  "nodes": [
+    {
+      "parameters": {
+        "resource": "user",
+        "operation": "getProfile",
+        "user": {
+          "__rl": true,
+          "value": "={{ $json.senderId }}",
+          "mode": "id"
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        -96,
+        176
+      ],
+      "id": "584cd836-3c4b-4953-adb8-78d2c32f126c",
+      "name": "Get a user's profile",
+      "webhookId": "9c352448-605c-4ea4-b90c-9d4ab66d994b",
+      "credentials": {
+        "slackApi": {
+          "id": "b9Gghkhhe1vImdl7",
+          "name": "Slack account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const mentionedUsers = [];\nlet messageText = '';\nconst channel = $json.channel;\nconst ts = $json.event_ts;\nconst senderId = $json.user; // original poster\n\n// Convert TS to DD/MM/YYYY\nlet formattedDate = '';\nif (ts) {\n  const date = new Date(parseFloat(ts) * 1000);\n  const day = String(date.getDate()).padStart(2, '0');\n  const month = String(date.getMonth() + 1).padStart(2, '0');\n  const year = date.getFullYear();\n  formattedDate = `${day}/${month}/${year}`;\n}\n\n// Traverse blocks > elements > elements\nif ($json.blocks && Array.isArray($json.blocks)) {\n  for (const block of $json.blocks) {\n    if (block.elements && Array.isArray(block.elements)) {\n      for (const element of block.elements) {\n        if (element.type === 'rich_text_section' && Array.isArray(element.elements)) {\n          for (const subElement of element.elements) {\n            if (subElement.type === 'user' && subElement.user_id) {\n              mentionedUsers.push(subElement.user_id);\n            } else if (subElement.type === 'text' && subElement.text) {\n              messageText += subElement.text;\n            }\n          }\n        }\n      }\n    }\n  }\n}\n\n// Return one item per mentioned user\nreturn mentionedUsers.map(userId => ({\n  json: {\n    userId,\n    senderId,\n    channel,\n    text: messageText.trim(),\n    ts,\n    dateFormatted: formattedDate\n  }\n}));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -320,
+        176
+      ],
+      "id": "809e676c-c1de-47c9-afe5-95d70348317b",
+      "name": "Extract Required Details"
+    },
+    {
+      "parameters": {
+        "trigger": [
+          "app_mention"
+        ],
+        "channelId": {
+          "__rl": true,
+          "value": "C098LK5HFK5",
+          "mode": "list",
+          "cachedResultName": "all-gen-ai-apps-demo"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.slackTrigger",
+      "typeVersion": 1,
+      "position": [
+        -544,
+        176
+      ],
+      "id": "d95e73c1-51e8-4b49-9882-6ec7b27187a8",
+      "name": "Slack Trigger for @mentions",
+      "webhookId": "4b89dcb9-16e1-4fb5-834d-d6ca78a59fb1",
+      "credentials": {
+        "slackApi": {
+          "id": "b9Gghkhhe1vImdl7",
+          "name": "Slack account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1oN3or616Wk5C3HwphtlFk34xy-UWdzfVVXUkUxoQdxo",
+          "mode": "list",
+          "cachedResultName": "Slack_Log_Mentions",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1oN3or616Wk5C3HwphtlFk34xy-UWdzfVVXUkUxoQdxo/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1oN3or616Wk5C3HwphtlFk34xy-UWdzfVVXUkUxoQdxo/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name": "={{ $json.real_name }}",
+            "Date": "={{ $('Extract Required Details').item.json.dateFormatted }}",
+            "Message": "={{ $('Extract Required Details').item.json.text }}"
+          },
+          "matchingColumns": [
+            "Name"
+          ],
+          "schema": [
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Message",
+              "displayName": "Message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        128,
+        176
+      ],
+      "id": "93493576-5bee-467d-b916-763619aa67aa",
+      "name": "Log the Attendance in Gsheet for Mentions",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "WkP5Lg0XCcAEwsmT",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C098LK5HFK5",
+          "mode": "list",
+          "cachedResultName": "all-gen-ai-apps-demo"
+        },
+        "text": "=Hi  {{ $json.real_name_normalized }}, your Name is marked for attendance.",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        352,
+        176
+      ],
+      "id": "393b63cd-3f98-4905-9b5b-81fc568d1918",
+      "name": "Send a Confirmation in SlagBot to User",
+      "webhookId": "67558c97-6913-47dd-b15c-7add8740d695",
+      "credentials": {
+        "slackApi": {
+          "id": "b9Gghkhhe1vImdl7",
+          "name": "Slack account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Slack Meeting Mentions Tracker. \n\n**This workflow will trigger from Slack App mentions. \n\n**Whenever a user from the channel logs in they specify the mentions and workflow capture their\npresence and send a response saying that the entry has been captured. The same has also been store in google sheet",
+        "height": 192,
+        "width": 976
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -528,
+        -80
+      ],
+      "typeVersion": 1,
+      "id": "2ab4560e-5c58-4936-8dc9-2ff58390164d",
+      "name": "Sticky Note"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Get a user's profile": {
+      "main": [
+        [
+          {
+            "node": "Log the Attendance in Gsheet for Mentions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Required Details": {
+      "main": [
+        [
+          {
+            "node": "Get a user's profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack Trigger for @mentions": {
+      "main": [
+        [
+          {
+            "node": "Extract Required Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log the Attendance in Gsheet for Mentions": {
+      "main": [
+        [
+          {
+            "node": "Send a Confirmation in SlagBot to User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a Confirmation in SlagBot to User": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "09fd2b17-a85b-4533-be8b-67b223279baf",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "4aea429a4a9eb2d691217395b2b4675392ddfd2140753f63cfc73e18da857f99"
+  },
+  "id": "ydO1prAJ8hnA6aYJ",
+  "tags": []
+}

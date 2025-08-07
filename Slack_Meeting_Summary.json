@@ -1,0 +1,221 @@
+{
+  "name": "Slack_Meeting_Summary",
+  "nodes": [
+    {
+      "parameters": {
+        "resource": "channel",
+        "operation": "history",
+        "channelId": {
+          "__rl": true,
+          "value": "C098LK5HFK5",
+          "mode": "list",
+          "cachedResultName": "all-gen-ai-apps-demo"
+        },
+        "filters": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        0,
+        208
+      ],
+      "id": "942f6c55-f198-4e16-8170-1450d187b691",
+      "name": "Get the history of a channel",
+      "webhookId": "811ffe4c-9af2-4141-be1e-6cdc633ad89f",
+      "credentials": {
+        "slackApi": {
+          "id": "b9Gghkhhe1vImdl7",
+          "name": "Slack account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = [];\n\n// Iterate over all messages\nfor (const item of items) {\n  const msg = item.json;\n\n  // Skip if it's a bot message or system message\n  if (msg.bot_id || msg.subtype === \"bot_message\" || msg.type !== \"message\") {\n    continue;\n  }\n\n  // Extract and clean the message text\n  const text = msg.text?.trim();\n  if (!text) continue;\n\n  result.push(`• ${text}`);\n}\n\n// Combine into a single string for summarization\nreturn [{\n  json: {\n    combinedText: result.join('\\n')\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        208
+      ],
+      "id": "d04d9b69-64fa-4869-8a1a-a7aa06cfe83a",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Look at the combinedtext from the group of prople who are discussed in the group. {{ $json.combinedText }}\nCreate the meaningful short summary, takeaway and action item. Stricthly dont mention anybody name. Have a generic and crisp message.",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=[   {     \"role\": \"system\",     \"content\": \"You are an assistant summarizing Slack conversations clearly and concisely.\"   },   {     \"role\": \"user\",     \"content\": \"Summarize the following Slack messages:\\n\\n{{$json.combinedText}}\"   } ]"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        448,
+        208
+      ],
+      "id": "6dbf3a93-aaa3-4dca-b677-ad00faadcf15",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        544,
+        432
+      ],
+      "id": "8c569a76-e56f-48df-8ae8-58199703502c",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "JqqMFb0CytAZdf65",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Slack Meeting Summary / Takeaway /Action Item workflow\n\n**This workflow will create a quick summary / Takeaway / Action Item from the Slack conversation happened on channel's Bot from group of people.\n\n**The Slack history node pulls the conversation History and code node will pull only the Name and conversation from the list and call LLM to create meaningful insights from the whole conversation.",
+        "height": 192,
+        "width": 864
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -64,
+        0
+      ],
+      "typeVersion": 1,
+      "id": "414f04f0-bb4b-4873-87d6-92b54cce7d22",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').all()[0].json.message.chat.id }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        848,
+        208
+      ],
+      "id": "74caab9c-463f-4cab-8a5a-f4512503935c",
+      "name": "Send a text message",
+      "webhookId": "8f5bc54d-6664-4231-8f6b-9fe44523c9a0",
+      "credentials": {
+        "telegramApi": {
+          "id": "x8aO3oaJAh9RTmvs",
+          "name": "JovinTech_Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -224,
+        208
+      ],
+      "id": "0826ed10-9c67-4687-a2be-4ada0e79b192",
+      "name": "Telegram Trigger",
+      "webhookId": "977e9904-2afa-4036-8227-2ebec94e0633",
+      "credentials": {
+        "telegramApi": {
+          "id": "x8aO3oaJAh9RTmvs",
+          "name": "JovinTech_Bot"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Get the history of a channel": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get the history of a channel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "3b1bce6b-891c-4e50-b6ba-2bd4746eb07b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "4aea429a4a9eb2d691217395b2b4675392ddfd2140753f63cfc73e18da857f99"
+  },
+  "id": "aP9qG2FbkYfe7VCO",
+  "tags": []
+}
